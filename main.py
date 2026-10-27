@@ -3,7 +3,6 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from datasets import load_dataset
-
 from dataset.vocab import Vocabulary
 from dataset.dataloader import FlickrDataset, CollateFn
 from models.bear import Bear
@@ -19,12 +18,16 @@ def train():
 
     # 3. Build Vocabulary
     print("Building vocabulary...")
-    all_captions = [sample["caption"][0] for sample in hf_dataset]
+    all_captions = []
+    for sample in hf_dataset:
+        for i in range(5):
+            all_captions.append(sample[f"caption_{i}"])
+            
     vocab = Vocabulary(freq_threshold=5)
     vocab.build_vocabulary(all_captions)
     vocab_size = len(vocab)
     print(f"Vocabulary built! Total unique tokens: {vocab_size}")
-
+    
     # 4. Image Transforms & DataLoader Setup
     transform = transforms.Compose([
         transforms.Resize((224, 224)),

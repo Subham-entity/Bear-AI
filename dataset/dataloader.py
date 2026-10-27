@@ -1,3 +1,4 @@
+import random
 import torch
 from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
@@ -15,9 +16,9 @@ class FlickrDataset(Dataset):
         sample = self.dataset[idx]
         image = sample["image"]
         
-        # Flickr8k provides 5 captions; let's grab the first one for simplicity, 
-        # or you can randomly sample one during training for data augmentation!
-        caption = sample["caption"][0]
+        # Randomly select one of the 5 available captions for data augmentation
+        cap_idx = random.randint(0, 4)
+        caption = sample[f"caption_{cap_idx}"]
 
         if self.transform:
             image = self.transform(image)
@@ -35,14 +36,10 @@ class CollateFn:
         self.pad_idx = pad_idx
 
     def __call__(self, batch):
-        # batch is a list of tuples: [(image1, caption1), (image2, caption2), ...]
         images = [item[0] for item in batch]
         captions = [item[1] for item in batch]
 
-        # Stack images into a single tensor: (Batch_Size, 3, 224, 224)
         images = torch.stack(images, dim=0)
-
-        # Pad captions to the longest sequence in this batch
         captions = pad_sequence(captions, batch_first=True, padding_value=self.pad_idx)
 
         return images, captions
