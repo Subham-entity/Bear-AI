@@ -1,6 +1,6 @@
 import torch
 
-def generate_caption_beam_search(model, vocab, tensor_image, beam_width=3, max_length=30, device="cpu"):
+def generate_caption(model, vocab, tensor_image, beam_width=3, max_length=30, device="cpu"):
     model.eval()
     with torch.no_grad():
         encoder_features = model.encoder(tensor_image.unsqueeze(0).to(device))

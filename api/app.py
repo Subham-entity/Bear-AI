@@ -11,7 +11,7 @@ app = FastAPI(title="Bear-Transformer API", description="Image Captioning Engine
 
 # Global device and model configuration
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CHECKPOINT_PATH = "weights/visiotext_checkpoint.pt"  # Ensure your weights file is placed here locally
+CHECKPOINT_PATH = "weights/bear_checkpoint.pt"  # Ensure your weights file is placed here locally
 
 print("Loading model checkpoint...")
 torch.serialization.add_safe_globals([Vocabulary])
