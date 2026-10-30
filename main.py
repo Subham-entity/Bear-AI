@@ -77,7 +77,8 @@ def train():
 
     model = Bear(vocab_size, embed_dim, num_heads, hidden_dim, num_layers).to(device)
     criterion = nn.CrossEntropyLoss(ignore_index=vocab.stoi["<PAD>"])
-    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
+    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=15, eta_min=1e-6)
 
     num_epochs = 15
     best_val_loss = float('inf')
@@ -107,7 +108,9 @@ def train():
         # --- EVALUATION ---
         avg_val_loss = validate(model, val_loader, criterion, device, vocab_size)
 
-        print(f"Epoch [{epoch+1}/{num_epochs}] | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}")
+        scheduler.step()
+        current_lr = scheduler.get_last_lr()[0]
+        print(f"Epoch [{epoch+1}/{num_epochs}] | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | LR: {current_lr:.6f}")
 
         # Save best checkpoint based on validation loss
         if avg_val_loss < best_val_loss:
