@@ -27,7 +27,7 @@ def train():
     vocab.build_vocabulary(all_captions)
     vocab_size = len(vocab)
     print(f"Vocabulary built! Total unique tokens: {vocab_size}")
-    
+
     # 4. Image Transforms & DataLoader Setup
     transform = transforms.Compose([
         transforms.Resize((224, 224)),
@@ -58,7 +58,7 @@ def train():
     optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4)
 
     # 6. Training Loop (Running for 3 initial epochs to test)
-    num_epochs = 3
+    num_epochs = 5
     model.train()
 
     for epoch in range(num_epochs):
