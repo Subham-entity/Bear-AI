@@ -112,13 +112,13 @@ def train():
         # Save best checkpoint based on validation loss
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
-            checkpoint_path = "/content/drive/MyDrive/visiotext_checkpoint.pt"
+            checkpoint_path = "/content/drive/MyDrive/bear_checkpoint.pt"
             torch.save({
                 'model_state_dict': model.state_dict(),
                 'vocab': vocab,
                 'vocab_size': vocab_size
             }, checkpoint_path)
-            print(f"--> Saved new best checkpoint to Google Drive!")
+            print(f"Model checkpoint saved successfully to {checkpoint_path}!")
 
 if __name__ == "__main__":
     train()
