@@ -75,7 +75,7 @@ def train():
     hidden_dim = 512
     num_layers = 2
     
-    num_epochs = 15
+    num_epochs = 20
     best_val_loss = float('inf')
 
     model = Bear(vocab_size, embed_dim, num_heads, hidden_dim, num_layers).to(device)
@@ -83,8 +83,8 @@ def train():
     cnn_params = [p for p in model.encoder.parameters() if p.requires_grad]
     transformer_params = list(model.decoder.parameters())
     optimizer = torch.optim.AdamW([
-    {'params': cnn_params, 'lr': 1e-5},          # Gentle fine-tuning for ResNet layer4
-    {'params': transformer_params, 'lr': 3e-4}   # Standard learning rate for Transformer decoder
+        {'params': cnn_params, 'lr': 1e-5, 'initial_lr': 1e-5},          # ResNet layer4 fine-tuning
+        {'params': transformer_params, 'lr': 3e-4, 'initial_lr': 3e-4}   # Transformer decoder
     ], weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
 
