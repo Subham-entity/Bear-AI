@@ -80,12 +80,16 @@ def train():
 
     model = Bear(vocab_size, embed_dim, num_heads, hidden_dim, num_layers).to(device)
     criterion = nn.CrossEntropyLoss(ignore_index=vocab.stoi["<PAD>"])
+    # Define parameter groups with explicit starting base learning rates
     cnn_params = [p for p in model.encoder.parameters() if p.requires_grad]
     transformer_params = list(model.decoder.parameters())
+
     optimizer = torch.optim.AdamW([
-        {'params': cnn_params, 'lr': 1e-5, 'initial_lr': 1e-5},          # ResNet layer4 fine-tuning
-        {'params': transformer_params, 'lr': 3e-4, 'initial_lr': 3e-4}   # Transformer decoder
+        {'params': cnn_params, 'lr': 1e-5},          # ResNet layer4 fine-tuning rate
+        {'params': transformer_params, 'lr': 3e-4}   # Transformer decoder base rate
     ], weight_decay=1e-4)
+
+    # Cosine annealing will now correctly scale down from 3e-4
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
 
     for epoch in range(num_epochs):
