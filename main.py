@@ -80,7 +80,12 @@ def train():
 
     model = Bear(vocab_size, embed_dim, num_heads, hidden_dim, num_layers).to(device)
     criterion = nn.CrossEntropyLoss(ignore_index=vocab.stoi["<PAD>"])
-    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
+    cnn_params = [p for p in model.encoder.parameters() if p.requires_grad]
+    transformer_params = list(model.decoder.parameters())
+    optimizer = torch.optim.AdamW([
+    {'params': cnn_params, 'lr': 1e-5},          # Gentle fine-tuning for ResNet layer4
+    {'params': transformer_params, 'lr': 3e-4}   # Standard learning rate for Transformer decoder
+    ], weight_decay=1e-4)
     scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
 
     for epoch in range(num_epochs):
