@@ -3,19 +3,23 @@ import torch.nn as nn
 import torchvision.models as models
 
 class EncoderCNN(nn.Module):
-    def __init__(self, embed_dim):
+    def __init__(self, embed_dim, fine_tune=True):
         super(EncoderCNN, self).__init__()
         
-        # Load pre-trained ResNet-18 with default weights
         resnet = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
         
-        # Strip away the final average pooling and fully connected layers 
-        # (keeping all convolutional feature extraction blocks up to layer4)
+        # Freeze all backbone parameters by default
+        for param in resnet.parameters():
+            param.requires_grad = False
+            
+        # Unfreeze layer4 so it can adapt to Flickr8k visual features
+        if fine_tune:
+            for param in resnet.layer4.parameters():
+                param.requires_grad = True
+
+        # Strip avgpool and fc layers
         modules = list(resnet.children())[:-2]
         self.resnet = nn.Sequential(*modules)
-        
-        # Linear projection layer to match the Transformer's hidden dimension (d_model)
-        # ResNet-18 layer4 outputs 512 feature channels
         self.linear = nn.Linear(512, embed_dim)
 
     def forward(self, images):

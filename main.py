@@ -74,14 +74,14 @@ def train():
     num_heads = 8
     hidden_dim = 512
     num_layers = 2
+    
+    num_epochs = 15
+    best_val_loss = float('inf')
 
     model = Bear(vocab_size, embed_dim, num_heads, hidden_dim, num_layers).to(device)
     criterion = nn.CrossEntropyLoss(ignore_index=vocab.stoi["<PAD>"])
-    optimizer = torch.optim.AdamW(model.parameters(), lr=3e-4, weight_decay=1e-4)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=15, eta_min=1e-6)
-
-    num_epochs = 15
-    best_val_loss = float('inf')
+    optimizer = torch.optim.AdamW(model.parameters(), lr=1e-4, weight_decay=1e-4)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
 
     for epoch in range(num_epochs):
         # --- TRAINING ---
