@@ -6,7 +6,7 @@ class EncoderCNN(nn.Module):
     def __init__(self, embed_dim, fine_tune=True):
         super(EncoderCNN, self).__init__()
         
-        resnet = models.resnet18(weights=models.ResNet18_Weights.DEFAULT)
+        resnet = models.resnet50(weights=models.ResNet50_Weights.DEFAULT)
         
         # Freeze all backbone parameters by default
         for param in resnet.parameters():
@@ -20,7 +20,7 @@ class EncoderCNN(nn.Module):
         # Strip avgpool and fc layers
         modules = list(resnet.children())[:-2]
         self.resnet = nn.Sequential(*modules)
-        self.linear = nn.Linear(512, embed_dim)
+        self.linear = nn.Linear(2048, embed_dim)
 
     def forward(self, images):
         # Input images shape: (Batch_Size, 3, 224, 224)

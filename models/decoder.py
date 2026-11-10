@@ -28,6 +28,7 @@ class DecoderTransformer(nn.Module):
             d_model=embed_dim, 
             nhead=num_heads, 
             dim_feedforward=hidden_dim, 
+            dropout = 0.2,
             batch_first=True
         )
         self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)

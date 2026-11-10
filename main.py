@@ -3,10 +3,11 @@ import torch.nn as nn
 from torch.utils.data import DataLoader
 from torchvision import transforms
 from datasets import load_dataset
-
+from torch.optim.lr_scheduler import LambdaLR, CosineAnnealingLR, SequentialLR
 from dataset.vocab import Vocabulary
 from dataset.dataloader import FlickrDataset, CollateFn
 from models.bear import Bear
+import math
 
 def validate(model, dataloader, criterion, device, vocab_size):
     model.eval()
@@ -72,10 +73,11 @@ def train():
     # Initialize Model, Loss, Optimizer
     embed_dim = 512
     num_heads = 8
-    hidden_dim = 1024
-    num_layers = 4
+    hidden_dim = 2048
+    num_layers = 6
     
     num_epochs = 20
+    warmup_epochs = 2
     best_val_loss = float('inf')
 
     model = Bear(vocab_size, embed_dim, num_heads, hidden_dim, num_layers).to(device)
@@ -89,8 +91,15 @@ def train():
         {'params': transformer_params, 'lr': 3e-4}   # Transformer decoder base rate
     ], weight_decay=1e-4)
 
+    def warmup_lambda(epoch):
+        if epoch < warmup_epochs:
+            return float(epoch + 1) / float(max(1, warmup_epochs))
+        # After warmup, cosine annealing takes over from 1.0 down to eta_min ratio
+        progress = float(epoch - warmup_epochs) / float(max(1, num_epochs - warmup_epochs))
+        return max(0.0, 0.5 * (1.0 + math.cos(math.pi * progress)))
+
     # Cosine annealing will now correctly scale down from 3e-4
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=num_epochs, eta_min=1e-6)
+    scheduler = LambdaLR(optimizer, lr_lambda=warmup_lambda)
 
     for epoch in range(num_epochs):
         # --- TRAINING ---
