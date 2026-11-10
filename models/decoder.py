@@ -19,9 +19,10 @@ class PositionalEncoding(nn.Module):
     
 
 class DecoderTransformer(nn.Module):
-    def __init__(self, vocab_size, embed_dim=512, num_heads=8, hidden_dim=1024, num_layers=4):
+    def __init__(self, vocab_size, embed_dim=512, num_heads=8, hidden_dim=1024, num_layers=4, max_len=100):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embed_dim)
+        self.pos_encoder = PositionalEncoding(embed_dim, max_len=max_len) # <--- 1. Instantiate it here
         
         decoder_layer = nn.TransformerDecoderLayer(
             d_model=embed_dim, 
@@ -38,17 +39,16 @@ class DecoderTransformer(nn.Module):
         return mask
 
     def forward(self, captions, encoder_features):
-        # captions shape: (batch, seq_len)
         seq_len = captions.size(1)
         device = captions.device
         
-        # Generate causal mask to prevent looking into the future
         tgt_mask = self.generate_square_subsequent_mask(seq_len, device)
         
         embeddings = self.embedding(captions) # (batch, seq_len, embed_dim)
         
-        # TransformerDecoder expects memory shape: (batch, num_patches, embed_dim)
-        # and tgt shape: (batch, seq_len, embed_dim)
+        # <--- 2. Add positional information to the word embeddings here
+        embeddings = self.pos_encoder(embeddings) 
+        
         output = self.transformer_decoder(
             tgt=embeddings, 
             memory=encoder_features, 
