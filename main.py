@@ -55,15 +55,25 @@ def train():
     vocab_size = len(vocab)
     print(f"Vocabulary built! Total unique tokens: {vocab_size}")
 
-    # Transforms & Datasets
-    transform = transforms.Compose([
+    # Stronger augmentations for training only
+    train_transform = transforms.Compose([
+        transforms.Resize((256, 256)),
+        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+        transforms.RandomHorizontalFlip(),
+        transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
+        transforms.ToTensor(),
+        transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+    ])
+
+    # Keep validation transform clean and deterministic
+    val_transform = transforms.Compose([
         transforms.Resize((224, 224)),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    train_dataset = FlickrDataset(train_hf, vocab, transform=transform)
-    val_dataset = FlickrDataset(val_hf, vocab, transform=transform)
+    train_dataset = FlickrDataset(train_hf, vocab, transform=train_transform)
+    val_dataset = FlickrDataset(val_hf, vocab, transform=val_transform)
     
     collate_fn = CollateFn(pad_idx=vocab.stoi["<PAD>"])
 
@@ -81,8 +91,11 @@ def train():
     best_val_loss = float('inf')
 
     model = Bear(vocab_size, embed_dim, num_heads, hidden_dim, num_layers).to(device)
-    criterion = nn.CrossEntropyLoss(ignore_index=vocab.stoi["<PAD>"])
-    # Define parameter groups with explicit starting base learning rates
+    criterion = nn.CrossEntropyLoss(
+        ignore_index=vocab.stoi["<PAD>"],
+        label_smoothing = 0.1
+    )
+
     cnn_params = [p for p in model.encoder.parameters() if p.requires_grad]
     transformer_params = list(model.decoder.parameters())
 

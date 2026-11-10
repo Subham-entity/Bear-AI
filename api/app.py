@@ -24,8 +24,18 @@ model = Bear(vocab_size, embed_dim=256, num_heads=8, hidden_dim=512, num_layers=
 model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
 
-# Standard ImageNet transform pipeline
-transform = transforms.Compose([
+# Stronger augmentations for training only
+train_transform = transforms.Compose([
+    transforms.Resize((256, 256)),
+    transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+    transforms.RandomHorizontalFlip(),
+    transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+])
+
+# Keep validation transform clean and deterministic
+val_transform = transforms.Compose([
     transforms.Resize((224, 224)),
     transforms.ToTensor(),
     transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
