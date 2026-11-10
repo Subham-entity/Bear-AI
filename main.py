@@ -70,10 +70,10 @@ def train():
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, collate_fn=collate_fn, num_workers=2)
 
     # Initialize Model, Loss, Optimizer
-    embed_dim = 256
+    embed_dim = 512
     num_heads = 8
-    hidden_dim = 512
-    num_layers = 2
+    hidden_dim = 1024
+    num_layers = 4
     
     num_epochs = 20
     best_val_loss = float('inf')
@@ -118,9 +118,8 @@ def train():
         avg_val_loss = validate(model, val_loader, criterion, device, vocab_size)
 
         scheduler.step()
-        current_lr = scheduler.get_last_lr()[0]
+        current_lr = scheduler.get_last_lr()[1]  # Index 1 corresponds to transformer_params
         print(f"Epoch [{epoch+1}/{num_epochs}] | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | LR: {current_lr:.6f}")
-
         # Save best checkpoint based on validation loss
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss

@@ -16,54 +16,44 @@ class PositionalEncoding(nn.Module):
     def forward(self, x):
         # x shape: (Batch, Seq_Len, d_model)
         return x + self.pe[:, :x.size(1)]
-
+    
 
 class DecoderTransformer(nn.Module):
-    def __init__(self, vocab_size, embed_dim, num_heads, hidden_dim, num_layers=2, max_len=100):
+    def __init__(self, vocab_size, embed_dim=512, num_heads=8, hidden_dim=1024, num_layers=4):
         super().__init__()
+        self.embedding = nn.Embedding(vocab_size, embed_dim)
         
-        self.embed = nn.Embedding(vocab_size, embed_dim)
-        self.pos_encoding = PositionalEncoding(embed_dim, max_len)
-        
-        # Transformer Decoder Layer handles self-attention on text + cross-attention on image features
         decoder_layer = nn.TransformerDecoderLayer(
-            d_model=embed_dim,
-            nhead=num_heads,
-            dim_feedforward=hidden_dim,
+            d_model=embed_dim, 
+            nhead=num_heads, 
+            dim_feedforward=hidden_dim, 
             batch_first=True
         )
         self.transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
-        
-        # Final linear classification head to map hidden states back to vocabulary tokens
-        self.fc = nn.Linear(embed_dim, vocab_size)
+        self.fc_out = nn.Linear(embed_dim, vocab_size)
 
-    def generate_square_subsequent_mask(self, sz):
-        # Causal mask to prevent the decoder from peeking into future tokens during training
-        mask = (torch.triu(torch.ones(sz, sz)) == 1).transpose(0, 1)
+    def generate_square_subsequent_mask(self, sz, device):
+        mask = (torch.triu(torch.ones(sz, sz, device=device)) == 1).transpose(0, 1)
         mask = mask.float().masked_fill(mask == 0, float('-inf')).masked_fill(mask == 1, float(0.0))
         return mask
 
     def forward(self, captions, encoder_features):
-        # captions shape: (Batch, Seq_Len)
-        # encoder_features shape: (Batch, 49, Embed_Dim)
-        
+        # captions shape: (batch, seq_len)
         seq_len = captions.size(1)
+        device = captions.device
         
-        # 1. Embed tokens and add positional encodings
-        x = self.embed(captions) * math.sqrt(self.embed.embedding_dim)
-        x = self.pos_encoding(x)
+        # Generate causal mask to prevent looking into the future
+        tgt_mask = self.generate_square_subsequent_mask(seq_len, device)
         
-        # 2. Generate causal mask for text autoregression
-        tgt_mask = self.generate_square_subsequent_mask(seq_len).to(captions.device)
+        embeddings = self.embedding(captions) # (batch, seq_len, embed_dim)
         
-        # 3. Pass through Transformer Decoder
-        # memory argument takes the image features (acting as Keys and Values)
+        # TransformerDecoder expects memory shape: (batch, num_patches, embed_dim)
+        # and tgt shape: (batch, seq_len, embed_dim)
         output = self.transformer_decoder(
-            tgt=x, 
+            tgt=embeddings, 
             memory=encoder_features, 
             tgt_mask=tgt_mask
         )
         
-        # 4. Project back to vocabulary logits
-        logits = self.fc(output)
+        logits = self.fc_out(output)
         return logits
