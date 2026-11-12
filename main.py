@@ -84,7 +84,7 @@ def train():
     embed_dim = 512
     num_heads = 8
     hidden_dim = 2048
-    num_layers = 6
+    num_layers = 4
     
     num_epochs = 20
     warmup_epochs = 2
@@ -93,14 +93,14 @@ def train():
     model = Bear(vocab_size, embed_dim, num_heads, hidden_dim, num_layers).to(device)
     criterion = nn.CrossEntropyLoss(
         ignore_index=vocab.stoi["<PAD>"],
-        label_smoothing = 0.1
+        label_smoothing = 0.0
     )
 
     cnn_params = [p for p in model.encoder.parameters() if p.requires_grad]
     transformer_params = list(model.decoder.parameters())
 
     optimizer = torch.optim.AdamW([
-        {'params': cnn_params, 'lr': 1e-5},          # ResNet layer4 fine-tuning rate
+        {'params': cnn_params, 'lr': 5e-5},          # ResNet layer4 fine-tuning rate
         {'params': transformer_params, 'lr': 3e-4}   # Transformer decoder base rate
     ], weight_decay=1e-4)
 

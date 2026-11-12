@@ -25,7 +25,7 @@ model = Bear(
     embed_dim=512,      # Upgraded from 256
     num_heads=8, 
     hidden_dim=2048,    # Upgraded from 512
-    num_layers=4        # Upgraded from 2
+    num_layers=6        # Upgraded from 2
 ).to(DEVICE)
 
 model.load_state_dict(checkpoint['model_state_dict'])
