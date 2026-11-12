@@ -58,9 +58,10 @@ def train():
     # Stronger augmentations for training only
     train_transform = transforms.Compose([
         transforms.Resize((256, 256)),
-        transforms.RandomResizedCrop(224, scale=(0.8, 1.0)),
+        transforms.RandomResizedCrop(224, scale=(0.7, 1.0)),
         transforms.RandomHorizontalFlip(),
-        transforms.ColorJitter(brightness=0.1, contrast=0.1, saturation=0.1),
+        transforms.ColorJitter(brightness=0.2, contrast=0.2, saturation=0.2, hue=0.1),
+        transforms.RandomGrayscale(p=0.1),
         transforms.ToTensor(),
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
@@ -93,7 +94,7 @@ def train():
     model = Bear(vocab_size, embed_dim, num_heads, hidden_dim, num_layers).to(device)
     criterion = nn.CrossEntropyLoss(
         ignore_index=vocab.stoi["<PAD>"],
-        label_smoothing = 0.0
+        label_smoothing = 0.05
     )
 
     cnn_params = [p for p in model.encoder.parameters() if p.requires_grad]
@@ -102,7 +103,7 @@ def train():
     optimizer = torch.optim.AdamW([
         {'params': cnn_params, 'lr': 5e-5},          # ResNet layer4 fine-tuning rate
         {'params': transformer_params, 'lr': 3e-4}   # Transformer decoder base rate
-    ], weight_decay=1e-4)
+    ], weight_decay=1e-3)
 
     def warmup_lambda(epoch):
         if epoch < warmup_epochs:
