@@ -19,8 +19,15 @@ checkpoint = torch.load(CHECKPOINT_PATH, map_location=DEVICE, weights_only=True)
 vocab = checkpoint['vocab']
 vocab_size = checkpoint['vocab_size']
 
-# Initialize model architecture and load saved weights
-model = Bear(vocab_size, embed_dim=256, num_heads=8, hidden_dim=512, num_layers=2).to(DEVICE)
+# Initialize model architecture with updated ResNet-50 / Transformer dimensions
+model = Bear(
+    vocab_size=vocab_size, 
+    embed_dim=512,      # Upgraded from 256
+    num_heads=8, 
+    hidden_dim=2048,    # Upgraded from 512
+    num_layers=4        # Upgraded from 2
+).to(DEVICE)
+
 model.load_state_dict(checkpoint['model_state_dict'])
 model.eval()
 
@@ -36,7 +43,6 @@ def root():
 
 @app.post("/predict")
 async def predict_image(file: UploadFile = File(...)):
-
     image_bytes = await file.read()
     image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
     tensor_image = transform(image)
