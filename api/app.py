@@ -1,13 +1,16 @@
 import io
 import torch
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from PIL import Image
 from torchvision import transforms
 from dataset.vocab import Vocabulary
 from models.bear import Bear
 from api.inference import generate_caption
 
-app = FastAPI(title="Bear-Transformer API", description="Image Captioning Engine using CNN + Transformer Cross-Attention")
+app = FastAPI(
+    title="Bear-Transformer API",
+    description="Image Captioning Engine using CNN + Transformer Cross-Attention"
+)
 
 # Global device and model configuration
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -19,13 +22,13 @@ checkpoint = torch.load(CHECKPOINT_PATH, map_location=DEVICE, weights_only=True)
 vocab = checkpoint['vocab']
 vocab_size = checkpoint['vocab_size']
 
-# Initialize model architecture with updated ResNet-50 / Transformer dimensions
+# Initialize model architecture matching your training config
 model = Bear(
-    vocab_size=vocab_size, 
-    embed_dim=512,      # Upgraded from 256
-    num_heads=8, 
-    hidden_dim=2048,    # Upgraded from 512
-    num_layers=6        # Upgraded from 2
+    vocab_size=vocab_size,
+    embed_dim=512,
+    num_heads=8,
+    hidden_dim=2048,
+    num_layers=4
 ).to(DEVICE)
 
 model.load_state_dict(checkpoint['model_state_dict'])
@@ -43,11 +46,15 @@ def root():
 
 @app.post("/predict")
 async def predict_image(file: UploadFile = File(...)):
-    image_bytes = await file.read()
-    image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    try:
+        image_bytes = await file.read()
+        image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid image file format.")
+    
     tensor_image = transform(image)
 
-    # Calls the inference engine cleanly
+    # Calls the inference engine cleanly[cite: 7]
     caption = generate_caption(model, vocab, tensor_image, device=DEVICE)
     
     return {
