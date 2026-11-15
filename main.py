@@ -9,24 +9,31 @@ from dataset.dataloader import FlickrDataset, CollateFn
 from models.bear import Bear
 import math
 
-def validate(model, dataloader, criterion, device, vocab_size):
+def validate(model, dataloader, criterion, device, vocab_size, pad_idx):
     model.eval()
     total_val_loss = 0
     
     with torch.no_grad():
-        for images, captions in dataloader:
+        for images, full_seqs, answer_start_idxs in dataloader:
             images = images.to(device)
-            captions = captions.to(device)
+            full_seqs = full_seqs.to(device)
 
             # Teacher forcing splits
-            decoder_inputs = captions[:, :-1]
-            targets = captions[:, 1:]
+            decoder_inputs = full_seqs[:, :-1]
+            targets = full_seqs[:, 1:]
+
+            # Construct targets mask (-100 for question/padding, active token indices for answers)
+            targets_mask = targets.clone()
+            for i, start_idx in enumerate(answer_start_idxs):
+                ans_start_in_target = max(0, start_idx.item() - 1)
+                targets_mask[i, :ans_start_in_target] = -100
+                targets_mask[i, targets[i] == pad_idx] = -100
 
             # Forward pass
             logits = model(images, decoder_inputs)
 
             # Compute loss
-            loss = criterion(logits.reshape(-1, vocab_size), targets.reshape(-1))
+            loss = criterion(logits.reshape(-1, vocab_size), targets_mask.reshape(-1))
             total_val_loss += loss.item()
 
     avg_val_loss = total_val_loss / len(dataloader)
@@ -50,7 +57,7 @@ def train():
         for i in range(5):
             all_captions.append(sample[f"caption_{i}"])
             
-    vocab = Vocabulary(freq_threshold=5)
+    vocab = Vocabulary(freq_threshold=3)
     vocab.build_vocabulary(all_captions)
     vocab_size = len(vocab)
     print(f"Vocabulary built! Total unique tokens: {vocab_size}")
@@ -73,10 +80,11 @@ def train():
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
-    train_dataset = FlickrDataset(train_hf, vocab, transform=train_transform)
-    val_dataset = FlickrDataset(val_hf, vocab, transform=val_transform)
+    train_dataset = FlickrDataset(train_hf, vocab, transform=train_transform, is_vqa=False)
+    val_dataset = FlickrDataset(val_hf, vocab, transform=val_transform, is_vqa=False)
     
-    collate_fn = CollateFn(pad_idx=vocab.stoi["<PAD>"])
+    pad_idx = vocab.stoi["<PAD>"]
+    collate_fn = CollateFn(pad_idx=pad_idx)
 
     train_loader = DataLoader(train_dataset, batch_size=32, shuffle=True, collate_fn=collate_fn, num_workers=2)
     val_loader = DataLoader(val_dataset, batch_size=32, shuffle=False, collate_fn=collate_fn, num_workers=2)
@@ -92,9 +100,11 @@ def train():
     best_val_loss = float('inf')
 
     model = Bear(vocab_size, embed_dim, num_heads, hidden_dim, num_layers).to(device)
+    
+    # Ignore index set to -100 to omit question tokens and padding from loss computation
     criterion = nn.CrossEntropyLoss(
-        ignore_index=vocab.stoi["<PAD>"],
-        label_smoothing = 0.05
+        ignore_index=-100,
+        label_smoothing=0.05
     )
 
     cnn_params = [p for p in model.encoder.parameters() if p.requires_grad]
@@ -108,26 +118,32 @@ def train():
     def warmup_lambda(epoch):
         if epoch < warmup_epochs:
             return float(epoch + 1) / float(max(1, warmup_epochs))
-        # After warmup, cosine annealing takes over from 1.0 down to eta_min ratio
         progress = float(epoch - warmup_epochs) / float(max(1, num_epochs - warmup_epochs))
         return max(0.0, 0.5 * (1.0 + math.cos(math.pi * progress)))
 
-    # Cosine annealing will now correctly scale down from 3e-4
     scheduler = LambdaLR(optimizer, lr_lambda=warmup_lambda)
 
     for epoch in range(num_epochs):
         # --- TRAINING ---
         model.train()
         total_train_loss = 0
-        for batch_idx, (images, captions) in enumerate(train_loader):
-            images, captions = images.to(device), captions.to(device)
+        for batch_idx, (images, full_seqs, answer_start_idxs) in enumerate(train_loader):
+            images = images.to(device)
+            full_seqs = full_seqs.to(device)
 
-            decoder_inputs = captions[:, :-1]
-            targets = captions[:, 1:]
+            decoder_inputs = full_seqs[:, :-1]
+            targets = full_seqs[:, 1:]
+
+            # Construct targets mask (-100 for question/padding, active token indices for answers)
+            targets_mask = targets.clone()
+            for i, start_idx in enumerate(answer_start_idxs):
+                ans_start_in_target = max(0, start_idx.item() - 1)
+                targets_mask[i, :ans_start_in_target] = -100
+                targets_mask[i, targets[i] == pad_idx] = -100
 
             optimizer.zero_grad()
             logits = model(images, decoder_inputs)
-            loss = criterion(logits.reshape(-1, vocab_size), targets.reshape(-1))
+            loss = criterion(logits.reshape(-1, vocab_size), targets_mask.reshape(-1))
             
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -138,15 +154,16 @@ def train():
         avg_train_loss = total_train_loss / len(train_loader)
 
         # --- EVALUATION ---
-        avg_val_loss = validate(model, val_loader, criterion, device, vocab_size)
+        avg_val_loss = validate(model, val_loader, criterion, device, vocab_size, pad_idx)
 
         scheduler.step()
         current_lr = scheduler.get_last_lr()[1]  # Index 1 corresponds to transformer_params
         print(f"Epoch [{epoch+1}/{num_epochs}] | Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f} | LR: {current_lr:.6f}")
+        
         # Save best checkpoint based on validation loss
         if avg_val_loss < best_val_loss:
             best_val_loss = avg_val_loss
-            checkpoint_path = "/content/drive/MyDrive/bear_checkpoint.pt"
+            checkpoint_path = "/content/drive/MyDrive/bear_vqa_checkpoint.pt"
             torch.save({
                 'model_state_dict': model.state_dict(),
                 'vocab': vocab,

@@ -4,10 +4,11 @@ from torch.utils.data import Dataset
 from torch.nn.utils.rnn import pad_sequence
 
 class FlickrDataset(Dataset):
-    def __init__(self, dataset, vocab, transform=None):
+    def __init__(self, dataset, vocab, transform=None, is_vqa=False):
         self.dataset = dataset
         self.vocab = vocab
         self.transform = transform
+        self.is_vqa = is_vqa
 
     def __len__(self):
         return len(self.dataset)
@@ -16,19 +17,31 @@ class FlickrDataset(Dataset):
         sample = self.dataset[idx]
         image = sample["image"]
         
-        # Randomly select one of the 5 available captions for data augmentation
-        cap_idx = random.randint(0, 4)
-        caption = sample[f"caption_{cap_idx}"]
+        # Support both VQA mode and fallback captioning mode
+        if self.is_vqa and "question" in sample and "answer" in sample:
+            question = sample["question"]
+            answer = sample["answer"]
+        else:
+            # Fallback to pure image captioning mode
+            cap_idx = random.randint(0, 4)
+            question = "describe the image"
+            answer = sample[f"caption_{cap_idx}"]
 
         if self.transform:
             image = self.transform(image)
 
-        # Numericalize caption and wrap with <START> and <END> tokens
-        numericalized_caption = [self.vocab.stoi["<START>"]]
-        numericalized_caption += self.vocab.numericalize(caption)
-        numericalized_caption.append(self.vocab.stoi["<END>"])
+        # Build sequence: [<START>] + [question tokens] + [<SEP>] + [answer tokens] + [<END>]
+        tokens = [self.vocab.stoi["<START>"]]
+        tokens += self.vocab.numericalize(question)
+        
+        sep_idx = self.vocab.stoi.get("<SEP>", self.vocab.stoi["<PAD>"])
+        tokens.append(sep_idx)
+        
+        answer_start_idx = len(tokens)  # Track where answer tokens begin for loss masking
+        tokens += self.vocab.numericalize(answer)
+        tokens.append(self.vocab.stoi["<END>"])
 
-        return image, torch.tensor(numericalized_caption)
+        return image, torch.tensor(tokens), answer_start_idx
 
 
 class CollateFn:
@@ -36,10 +49,11 @@ class CollateFn:
         self.pad_idx = pad_idx
 
     def __call__(self, batch):
-        images = [item[0] for item in batch]
-        captions = [item[1] for item in batch]
+        images = torch.stack([item[0] for item in batch], dim=0)
+        sequences = [item[1] for item in batch]
+        answer_start_idxs = torch.tensor([item[2] for item in batch], dtype=torch.long)
 
-        images = torch.stack(images, dim=0)
-        captions = pad_sequence(captions, batch_first=True, padding_value=self.pad_idx)
+        # Pad sequences to the max length in the batch
+        padded_sequences = pad_sequence(sequences, batch_first=True, padding_value=self.pad_idx)
 
-        return images, captions
+        return images, padded_sequences, answer_start_idxs

@@ -6,6 +6,7 @@ from torchvision import transforms
 from dataset.vocab import Vocabulary
 from models.bear import Bear
 from api.inference import generate_caption
+from fastapi import Form, Optional
 
 app = FastAPI(
     title="Bear-Transformer API",
@@ -45,7 +46,7 @@ def root():
     return {"status": "Bear API is running!"}
 
 @app.post("/predict")
-async def predict_image(file: UploadFile = File(...)):
+async def predict_image(file: UploadFile = File(...), question: Optional[str] = Form(None)):
     try:
         image_bytes = await file.read()
         image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
@@ -53,11 +54,14 @@ async def predict_image(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Invalid image file format.")
     
     tensor_image = transform(image)
-
-    # Calls the inference engine cleanly[cite: 7]
-    caption = generate_caption(model, vocab, tensor_image, device=DEVICE)
+    
+    # Use default caption prompt if question is empty or blank
+    prompt = question if question and question.strip() else "describe the image"
+    
+    result = generate_answer(model, vocab, tensor_image, question=prompt, device=DEVICE)
     
     return {
         "filename": file.filename,
-        "generated_caption": caption
+        "question": prompt,
+        "response": result
     }

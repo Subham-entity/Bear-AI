@@ -1,23 +1,27 @@
 import torch
 
-def generate_caption(model, vocab, tensor_image, beam_width=3, max_length=30, device="cpu"):
+def generate_answer(model, vocab, tensor_image, question="describe the image", beam_width=3, max_length=30, device="cpu"):
     model.eval()
     with torch.no_grad():
         encoder_features = model.encoder(tensor_image.unsqueeze(0).to(device))
         
         start_token = vocab.stoi["<START>"]
         end_token = vocab.stoi["<END>"]
+        sep_idx = vocab.stoi.get("<SEP>", vocab.stoi["<PAD>"])
         
-        beams = [([start_token], 0.0)]
+        # Build initial sequence: [<START>] + [question tokens] + [<SEP>]
+        seq = [start_token] + vocab.numericalize(question) + [sep_idx]
+        score = 0.0
+        beams = [(seq, score)]
         
         for _ in range(max_length):
             new_beams = []
-            for seq, score in beams:
-                if seq[-1] == end_token:
-                    new_beams.append((seq, score))
+            for current_seq, current_score in beams:
+                if current_seq[-1] == end_token:
+                    new_beams.append((current_seq, current_score))
                     continue
                 
-                captions_tensor = torch.tensor(seq, dtype=torch.long).unsqueeze(0).to(device)
+                captions_tensor = torch.tensor(current_seq, dtype=torch.long).unsqueeze(0).to(device)
                 logits = model.decoder(captions_tensor, encoder_features)
                 
                 log_probs = torch.log_softmax(logits[0, -1, :], dim=-1)
@@ -26,18 +30,20 @@ def generate_caption(model, vocab, tensor_image, beam_width=3, max_length=30, de
                 for i in range(beam_width):
                     next_token = topk_indices[i].item()
                     next_score = topk_probs[i].item()
-                    new_beams.append((seq + [next_token], score + next_score))
+                    new_beams.append((current_seq + [next_token], current_score + next_score))
             
             beams = sorted(new_beams, key=lambda x: x[1], reverse=True)[:beam_width]
-            
             if all(seq[-1] == end_token for seq, _ in beams):
                 break
                 
         best_seq = beams[0][0]
         
-        # Cleanly truncate sequence at <END> token if present
+        # Extract only the generated answer tokens coming after the <SEP> token
+        sep_pos = best_seq.index(sep_idx) if sep_idx in best_seq else 0
+        answer_tokens = best_seq[sep_pos + 1:]
+        
         processed_seq = []
-        for idx in best_seq[1:]:  # Skip <START>
+        for idx in answer_tokens:
             if idx == end_token:
                 break
             processed_seq.append(idx)
