@@ -5,7 +5,7 @@ from PIL import Image
 from torchvision import transforms
 from dataset.vocab import Vocabulary
 from models.bear import Bear
-from api.inference import generate_caption
+from api.inference import generate_answer
 from fastapi import Form, Optional
 
 app = FastAPI(
