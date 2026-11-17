@@ -3,7 +3,7 @@ import torch.nn as nn
 import math
 
 class PositionalEncoding(nn.Module):
-    def __init__(self, d_model, max_len=100):
+    def __init__(self, d_model, max_len=150):
         super().__init__()
         pe = torch.zeros(max_len, d_model)
         position = torch.arange(0, max_len, dtype=torch.float).unsqueeze(1)
@@ -19,10 +19,10 @@ class PositionalEncoding(nn.Module):
     
 
 class DecoderTransformer(nn.Module):
-    def __init__(self, vocab_size, embed_dim=512, num_heads=8, hidden_dim=1024, num_layers=4, max_len=100):
+    def __init__(self, vocab_size, embed_dim=512, num_heads=8, hidden_dim=1024, num_layers=4, max_len=150):
         super().__init__()
         self.embedding = nn.Embedding(vocab_size, embed_dim)
-        self.pos_encoder = PositionalEncoding(embed_dim, max_len=max_len) # <--- 1. Instantiate it here
+        self.pos_encoder = PositionalEncoding(embed_dim, max_len=max_len)
         
         decoder_layer = nn.TransformerDecoderLayer(
             d_model=embed_dim, 
@@ -46,8 +46,6 @@ class DecoderTransformer(nn.Module):
         tgt_mask = self.generate_square_subsequent_mask(seq_len, device)
         
         embeddings = self.embedding(captions) # (batch, seq_len, embed_dim)
-        
-        # <--- 2. Add positional information to the word embeddings here
         embeddings = self.pos_encoder(embeddings) 
         
         output = self.transformer_decoder(

@@ -22,7 +22,7 @@ class FlickrDataset(Dataset):
             question = sample["question"]
             answer = sample["answer"]
         else:
-            # Fallback to pure image captioning mode
+            # Fallback to pure image captioning mode using Flickr captions
             cap_idx = random.randint(0, 4)
             question = "describe the image"
             answer = sample[f"caption_{cap_idx}"]
@@ -34,10 +34,12 @@ class FlickrDataset(Dataset):
         tokens = [self.vocab.stoi["<START>"]]
         tokens += self.vocab.numericalize(question)
         
-        sep_idx = self.vocab.stoi.get("<SEP>", self.vocab.stoi["<PAD>"])
-        tokens.append(sep_idx)
+        # Safely handle <SEP> token if present in vocab, otherwise fallback to <PAD> or space delimiter behavior
+        sep_idx = self.vocab.stoi.get("<SEP>", None)
+        if sep_idx is not None:
+            tokens.append(sep_idx)
         
-        answer_start_idx = len(tokens)  # Track where answer tokens begin for loss masking
+        answer_start_idx = len(tokens)  # Track exact index where answer tokens begin for loss masking
         tokens += self.vocab.numericalize(answer)
         tokens.append(self.vocab.stoi["<END>"])
 

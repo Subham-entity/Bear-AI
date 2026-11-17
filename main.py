@@ -50,7 +50,7 @@ def train():
     train_hf = split_dataset["train"]
     val_hf = split_dataset["test"]
 
-    # Build Vocabulary using training captions
+    # Build Vocabulary using training captions (or integrate your VQA question/answer lists here)
     print("Building vocabulary...")
     all_captions = []
     for sample in train_hf:
@@ -80,6 +80,7 @@ def train():
         transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     ])
 
+    # Set is_vqa=True once you hook up your VQA dataset samples
     train_dataset = FlickrDataset(train_hf, vocab, transform=train_transform, is_vqa=False)
     val_dataset = FlickrDataset(val_hf, vocab, transform=val_transform, is_vqa=False)
     

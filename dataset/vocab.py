@@ -2,7 +2,7 @@ import collections
 import torch
 
 class Vocabulary:
-    def __init__(self, freq_threshold=5):
+    def __init__(self, freq_threshold=3):
         # Initialize dictionaries for word-to-index and index-to-word
         self.itos = {0: "<PAD>", 1: "<START>", 2: "<END>", 3: "<UNK>"}
         self.stoi = {"<PAD>": 0, "<START>": 1, "<END>": 2, "<UNK>": 3}
@@ -29,6 +29,13 @@ class Vocabulary:
                     self.stoi[word] = idx
                     self.itos[idx] = word
                     idx += 1
+
+    def build_vqa_vocabulary(self, question_list, answer_list):
+        """
+        Builds vocabulary from both question and answer lists for VQA training.
+        """
+        combined_sentences = list(question_list) + list(answer_list)
+        self.build_vocabulary(combined_sentences)
 
     def numericalize(self, text):
         tokenized_text = self.tokenizer_eng(text)

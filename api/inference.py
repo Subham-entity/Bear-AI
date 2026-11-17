@@ -2,15 +2,20 @@ import torch
 
 def generate_answer(model, vocab, tensor_image, question="describe the image", beam_width=3, max_length=30, device="cpu"):
     model.eval()
-    with torch.no_grad():
+    with torch.no_rad():
         encoder_features = model.encoder(tensor_image.unsqueeze(0).to(device))
         
         start_token = vocab.stoi["<START>"]
         end_token = vocab.stoi["<END>"]
-        sep_idx = vocab.stoi.get("<SEP>", vocab.stoi["<PAD>"])
         
-        # Build initial sequence: [<START>] + [question tokens] + [<SEP>]
-        seq = [start_token] + vocab.numericalize(question) + [sep_idx]
+        # Safely handle <SEP> token matching dataloader configuration
+        sep_idx = vocab.stoi.get("<SEP>", None)
+        
+        # Build initial sequence: [<START>] + [question tokens] + [<SEP> if present]
+        seq = [start_token] + vocab.numericalize(question)
+        if sep_idx is not None:
+            seq.append(sep_idx)
+            
         score = 0.0
         beams = [(seq, score)]
         
@@ -38,9 +43,14 @@ def generate_answer(model, vocab, tensor_image, question="describe the image", b
                 
         best_seq = beams[0][0]
         
-        # Extract only the generated answer tokens coming after the <SEP> token
-        sep_pos = best_seq.index(sep_idx) if sep_idx in best_seq else 0
-        answer_tokens = best_seq[sep_pos + 1:]
+        # Extract only the generated answer tokens coming after the <SEP> token (or fallback to question length)
+        if sep_idx is not None and sep_idx in best_seq:
+            sep_pos = best_seq.index(sep_idx)
+            answer_tokens = best_seq[sep_pos + 1:]
+        else:
+            # Fallback if <SEP> wasn't part of the vocab sequence layout
+            question_len = len(vocab.numericalize(question)) + 1 # +1 for <START>
+            answer_tokens = best_seq[question_len:]
         
         processed_seq = []
         for idx in answer_tokens:

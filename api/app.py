@@ -1,21 +1,21 @@
 import io
 import torch
-from fastapi import FastAPI, File, UploadFile, HTTPException
+from typing import Optional
+from fastapi import FastAPI, File, UploadFile, HTTPException, Form
 from PIL import Image
 from torchvision import transforms
 from dataset.vocab import Vocabulary
 from models.bear import Bear
 from api.inference import generate_answer
-from fastapi import Form, Optional
 
 app = FastAPI(
-    title="Bear-Transformer API",
-    description="Image Captioning Engine using CNN + Transformer Cross-Attention"
+    title="Bear-VQA Transformer API",
+    description="Visual Question Answering Engine using CNN + Transformer Cross-Attention"
 )
 
 # Global device and model configuration
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-CHECKPOINT_PATH = "weights/bear_checkpoint.pt"  # Ensure your weights file is placed here locally
+CHECKPOINT_PATH = "weights/bear_vqa_checkpoint.pt"  # Updated weights path for VQA model checkpoint
 
 print("Loading model checkpoint...")
 torch.serialization.add_safe_globals([Vocabulary])
@@ -43,7 +43,7 @@ transform = transforms.Compose([
 
 @app.get("/")
 def root():
-    return {"status": "Bear API is running!"}
+    return {"status": "Bear VQA API is running!"}
 
 @app.post("/predict")
 async def predict_image(file: UploadFile = File(...), question: Optional[str] = Form(None)):
