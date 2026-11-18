@@ -44,21 +44,18 @@ def train():
     print(f"Using device: {device}")
 
     # Load Dataset and split into Train & Validation (e.g., 90% train, 10% validation)
-    print("Loading Flickr8k dataset...")
-    hf_dataset = load_dataset("jxie/flickr8k", split="train")
+    print("Loading VQA dataset...")
+    hf_dataset = load_dataset("merve/vqav2-small", split="validation")  # ~21k samples, great for Colab T4
     split_dataset = hf_dataset.train_test_split(test_size=0.1, seed=42)
     train_hf = split_dataset["train"]
     val_hf = split_dataset["test"]
 
-    # Build Vocabulary using training captions (or integrate your VQA question/answer lists here)
-    print("Building vocabulary...")
-    all_captions = []
-    for sample in train_hf:
-        for i in range(5):
-            all_captions.append(sample[f"caption_{i}"])
-            
+    print("Building VQA vocabulary...")
+    questions = [sample["question"] for sample in train_hf]
+    answers = [sample["multiple_choice_answer"] for sample in train_hf]
+
     vocab = Vocabulary(freq_threshold=3)
-    vocab.build_vocabulary(all_captions)
+    vocab.build_vqa_vocabulary(questions, answers)
     vocab_size = len(vocab)
     print(f"Vocabulary built! Total unique tokens: {vocab_size}")
 

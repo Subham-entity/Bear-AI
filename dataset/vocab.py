@@ -4,8 +4,8 @@ import torch
 class Vocabulary:
     def __init__(self, freq_threshold=3):
         # Initialize dictionaries for word-to-index and index-to-word
-        self.itos = {0: "<PAD>", 1: "<START>", 2: "<END>", 3: "<UNK>"}
-        self.stoi = {"<PAD>": 0, "<START>": 1, "<END>": 2, "<UNK>": 3}
+        self.itos = {0: "<PAD>", 1: "<START>", 2: "<END>", 3: "<UNK>", 4: "<SEP>"}
+        self.stoi = {"<PAD>": 0, "<START>": 1, "<END>": 2, "<UNK>": 3, "<SEP>": 4}
         self.freq_threshold = freq_threshold
 
     def __len__(self):
@@ -18,7 +18,7 @@ class Vocabulary:
 
     def build_vocabulary(self, sentence_list):
         frequencies = collections.Counter()
-        idx = 4
+        idx = 5
 
         for sentence in sentence_list:
             for word in self.tokenizer_eng(sentence):

@@ -15,31 +15,30 @@ class FlickrDataset(Dataset):
 
     def __getitem__(self, idx):
         sample = self.dataset[idx]
-        image = sample["image"]
+        image = sample["image"].convert("RGB")  # Ensure 3 channels (some VQA images are grayscale)
+        question = sample["question"]
         
-        # Support both VQA mode and fallback captioning mode
-        if self.is_vqa and "question" in sample and "answer" in sample:
-            question = sample["question"]
+        # Handle datasets with either a single 'answer' string or a list of 'answers'
+        if "answer" in sample and isinstance(sample["answer"], str):
             answer = sample["answer"]
+        elif "multiple_choice_answer" in sample:
+            answer = sample["multiple_choice_answer"]
+        elif "answers" in sample:
+            # Pick the most frequent or first answer from the list
+            ans_list = sample["answers"]
+            answer = ans_list[0]["answer"] if isinstance(ans_list[0], dict) else ans_list[0]
         else:
-            # Fallback to pure image captioning mode using Flickr captions
-            cap_idx = random.randint(0, 4)
-            question = "describe the image"
-            answer = sample[f"caption_{cap_idx}"]
+            answer = ""
 
         if self.transform:
             image = self.transform(image)
 
-        # Build sequence: [<START>] + [question tokens] + [<SEP>] + [answer tokens] + [<END>]
+        # Build sequence: [<START>] + [question] + [<SEP>] + [answer] + [<END>]
         tokens = [self.vocab.stoi["<START>"]]
         tokens += self.vocab.numericalize(question)
+        tokens.append(self.vocab.stoi["<SEP>"])
         
-        # Safely handle <SEP> token if present in vocab, otherwise fallback to <PAD> or space delimiter behavior
-        sep_idx = self.vocab.stoi.get("<SEP>", None)
-        if sep_idx is not None:
-            tokens.append(sep_idx)
-        
-        answer_start_idx = len(tokens)  # Track exact index where answer tokens begin for loss masking
+        answer_start_idx = len(tokens)
         tokens += self.vocab.numericalize(answer)
         tokens.append(self.vocab.stoi["<END>"])
 
