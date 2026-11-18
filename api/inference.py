@@ -2,7 +2,7 @@ import torch
 
 def generate_answer(model, vocab, tensor_image, question="describe the image", beam_width=3, max_length=30, device="cpu"):
     model.eval()
-    with torch.no_rad():
+    with torch.no_grad():
         encoder_features = model.encoder(tensor_image.unsqueeze(0).to(device))
         
         start_token = vocab.stoi["<START>"]

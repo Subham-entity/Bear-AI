@@ -81,8 +81,8 @@ def train():
     ])
 
     # Set is_vqa=True once you hook up your VQA dataset samples
-    train_dataset = FlickrDataset(train_hf, vocab, transform=train_transform, is_vqa=False)
-    val_dataset = FlickrDataset(val_hf, vocab, transform=val_transform, is_vqa=False)
+    train_dataset = FlickrDataset(train_hf, vocab, transform=train_transform, is_vqa=True)
+    val_dataset = FlickrDataset(val_hf, vocab, transform=val_transform, is_vqa=True)
     
     pad_idx = vocab.stoi["<PAD>"]
     collate_fn = CollateFn(pad_idx=pad_idx)
