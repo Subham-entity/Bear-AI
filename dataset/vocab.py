@@ -1,5 +1,6 @@
 import collections
-import torch
+import re
+
 
 class Vocabulary:
     def __init__(self, freq_threshold=3):
@@ -13,8 +14,9 @@ class Vocabulary:
 
     @staticmethod
     def tokenizer_eng(text):
-        # Basic lowercase and whitespace tokenizer
-        return text.lower().split()
+        # Lowercase and separate standalone punctuation marks while preserving contractions (e.g., dog's)
+        cleaned = re.sub(r"([?.!,;:\"/()\[\]{}])", r" \1 ", text.lower())
+        return cleaned.split()
 
     def build_vocabulary(self, sentence_list):
         frequencies = collections.Counter()
@@ -39,7 +41,7 @@ class Vocabulary:
 
     def numericalize(self, text):
         tokenized_text = self.tokenizer_eng(text)
-        
+
         return [
             self.stoi.get(token, self.stoi["<UNK>"]) for token in tokenized_text
         ]
